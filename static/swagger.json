@@ -1,0 +1,240 @@
+
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "API de Web Scraping Jurídico",
+    "description": "API para realizar web scraping de processos judiciais em tribunais brasileiros.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:5000/api/v1/scrape",
+      "description": "Servidor de desenvolvimento local"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Scraping RJ",
+      "description": "Operações de scraping para tribunais do Rio de Janeiro"
+    }
+  ],
+  "paths": {
+    "/rj/pje": {
+      "post": {
+        "summary": "Realizar scraping de processo no PJE-RJ",
+        "description": "Endpoint para realizar o scraping de um processo no PJE-RJ. Recebe apenas o número do processo no corpo da requisição.",
+        "tags": [
+          "Scraping RJ"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WSRequest"
+              },
+              "example": {
+                "numProcesso": "0809129-51.2024.8.19.0001"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Processo raspado com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Processo"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Requisição inválida",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Requisição deve ser JSON"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro interno do servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Ocorreu um erro ao raspar o processo."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/rj/eproc": {
+      "post": {
+        "summary": "Realizar scraping de processo no Eproc-RJ",
+        "description": "Endpoint para realizar o scraping de um processo no Eproc-RJ. Recebe apenas o número do processo no corpo da requisição.",
+        "tags": [
+          "Scraping RJ"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WSRequest"
+              },
+              "example": {
+                "numProcesso": "3002543-43.2025.8.19.0001"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Processo raspado com sucesso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Processo"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Requisição inválida",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Requisição deve ser JSON"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro interno do servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Ocorreu um erro ao raspar o processo."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "WSRequest": {
+        "type": "object",
+        "properties": {
+          "numProcesso": {
+            "type": "string",
+            "description": "Número do processo a ser raspado.",
+            "example": "0000000-00.0000.0.00.0000"
+          }
+        },
+        "required": [
+          "numProcesso"
+        ]
+      },
+      "Movimento": {
+        "type": "object",
+        "properties": {
+          "ordem": {
+            "type": "integer",
+            "nullable": true,
+            "description": "Ordem do movimento."
+          },
+          "nome": {
+            "type": "string",
+            "description": "Nome do movimento."
+          },
+          "dataHora": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Data e hora do movimento."
+          }
+        },
+        "required": [
+          "nome",
+          "dataHora"
+        ]
+      },
+      "Processo": {
+        "type": "object",
+        "properties": {
+          "partesEnvolvidas": {
+            "type": "string",
+            "description": "Partes envolvidas no processo."
+          },
+          "numeroProcesso": {
+            "type": "string",
+            "description": "Número do processo."
+          },
+          "tribunal": {
+            "type": "string",
+            "description": "Tribunal de origem do processo."
+          },
+          "sistema": {
+            "type": "string",
+            "description": "Sistema (PJE, Eproc, etc.)."
+          },
+          "grau": {
+            "type": "string",
+            "description": "Grau de instância do processo."
+          },
+          "movimentos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Movimento"
+            },
+            "description": "Lista de movimentos do processo."
+          },
+          "dataHoraUltimaAtualizacao": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Data e hora da última atualização do processo."
+          }
+        },
+        "required": [
+          "partesEnvolvidas",
+          "numeroProcesso",
+          "tribunal",
+          "sistema",
+          "grau",
+          "dataHoraUltimaAtualizacao"
+        ]
+      }
+    }
+  }
+}
