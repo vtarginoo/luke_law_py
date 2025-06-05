@@ -2,20 +2,32 @@
 {
   "openapi": "3.0.0",
   "info": {
-    "title": "API de Web Scraping Jurídico",
-    "description": "API para realizar web scraping de processos judiciais em tribunais brasileiros.",
+    "title": "Luke Law API",
+    "description": "API para automatizar consultas de processos judiciais via WhatsApp e web scraping em tribunais brasileiros.",
     "version": "1.0.0"
   },
   "servers": [
     {
-      "url": "http://127.0.0.1:5000/api/v1/scrape",
-      "description": "Servidor de desenvolvimento local"
+      "url": "http://127.0.0.1:8000/",
+      "description": "Servidor de desenvolvimento local principal"
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/v1/scrape",
+      "description": "Servidor de desenvolvimento local para scraping"
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/v1/whastapp",
+      "description": "Servidor de desenvolvimento local para rotas de WhatsApp"
     }
   ],
   "tags": [
     {
       "name": "Scraping RJ",
-      "description": "Operações de scraping para tribunais do Rio de Janeiro"
+      "description": "Operações de scraping para tribunais do Rio de Janeiro (PJE, Eproc)"
+    },
+    {
+      "name": "Consulta de Processos WhatsApp",
+      "description": "Operações para consultar detalhes de processos judiciais via WhatsApp e identificador de sistema."
     }
   ],
   "paths": {
@@ -45,7 +57,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Processo"
+                  "$ref": "#/components/schemas/ProcessoScrapedDTO"
                 }
               }
             }
@@ -111,7 +123,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Processo"
+                  "$ref": "#/components/schemas/ProcessoScrapedDTO"
                 }
               }
             }
@@ -150,6 +162,99 @@
           }
         }
       }
+    },
+    "/api/v1/whatsapp": {
+      "post": {
+        "summary": "Consultar processo judicial via WhatsApp (endpoint principal)",
+        "description": "Endpoint para iniciar uma consulta de processo judicial, recebendo o número do WhatsApp do advogado, o identificador do sistema e o número do processo. Este é o endpoint primário para integração com sistemas de mensagens como o Twilio Flow.",
+        "tags": [
+          "Consulta de Processos WhatsApp"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WppRequest"
+              },
+              "example": {
+                "adv_wpp": "+5521999991234",
+                "system_identifier": "1",
+                "num_processo": "0001234-56.2023.8.19.0001"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Processo raspado com sucesso e retornado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProcessoScrapedDTO"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Requisição inválida (dados faltando ou em formato incorreto).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {"type": "string", "example": "error"},
+                    "message": {"type": "string", "example": "Dados da requisição inválidos"},
+                    "details": {"type": "array", "items": {"type": "object"}}
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Processo não encontrado no sistema informado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {"type": "string", "example": "error"},
+                    "message": {"type": "string", "example": "Processo 0001234-56.2023.8.19.0001 não encontrado."}
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Erro de negócio (ex: CAPTCHA falhou, problemas de login no sistema).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {"type": "string", "example": "error"},
+                    "message": {"type": "string", "example": "Houve um problema com a consulta: CAPTCHA não resolvido."}
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro interno do servidor durante o processamento.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {"type": "string", "example": "error"},
+                    "message": {"type": "string", "example": "Erro interno do servidor."}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -167,7 +272,33 @@
           "numProcesso"
         ]
       },
-      "Movimento": {
+      "WppRequest": {
+        "type": "object",
+        "properties": {
+          "adv_wpp": {
+            "type": "string",
+            "description": "Número de WhatsApp do advogado (incluindo código do país, ex: +55219XXXXXXXX).",
+            "example": "+5521999991234"
+          },
+          "system_identifier": {
+            "type": "string",
+            "description": "Identificador numérico do sistema (ex: '1' para Eproc-RJ, '2' para PJE-RJ).",
+            "enum": ["1", "2"],
+            "example": "1"
+          },
+          "num_processo": {
+            "type": "string",
+            "description": "Número do processo a ser consultado.",
+            "example": "0001234-56.2023.8.19.0001"
+          }
+        },
+        "required": [
+          "adv_wpp",
+          "system_identifier",
+          "num_processo"
+        ]
+      },
+      "MovimentoDTO": {
         "type": "object",
         "properties": {
           "ordem": {
@@ -190,7 +321,7 @@
           "dataHora"
         ]
       },
-      "Processo": {
+      "ProcessoScrapedDTO": {
         "type": "object",
         "properties": {
           "partesEnvolvidas": {
@@ -216,7 +347,7 @@
           "movimentos": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/Movimento"
+              "$ref": "#/components/schemas/MovimentoDTO"
             },
             "description": "Lista de movimentos do processo."
           },

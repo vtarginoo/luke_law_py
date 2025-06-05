@@ -2,6 +2,7 @@ from flask import Flask
 
 from flask_swagger_ui import get_swaggerui_blueprint
 
+from modules.message.message_controller import message_bp
 from modules.models.exception.global_exception_handler import exception_scrape_bp
 from modules.web_scraping.scraping_controller import scraping_bp
 import logging
