@@ -8,15 +8,15 @@
   },
   "servers": [
     {
-      "url": "http://127.0.0.1:8000/",
+      "url": "http://127.0.0.1:5000/",
       "description": "Servidor de desenvolvimento local principal"
     },
     {
-      "url": "http://127.0.0.1:8000/api/v1/scrape",
+      "url": "http://127.0.0.1:5000/api/v1/scrape",
       "description": "Servidor de desenvolvimento local para scraping"
     },
     {
-      "url": "http://127.0.0.1:8000/api/v1/whastapp",
+      "url": "http://127.0.0.1:5000/api/v1/whastapp",
       "description": "Servidor de desenvolvimento local para rotas de WhatsApp"
     }
   ],
@@ -31,7 +31,7 @@
     }
   ],
   "paths": {
-    "/rj/pje": {
+    "/api/v1/scrape/rj/pje": {
       "post": {
         "summary": "Realizar scraping de processo no PJE-RJ",
         "description": "Endpoint para realizar o scraping de um processo no PJE-RJ. Recebe apenas o número do processo no corpo da requisição.",
@@ -97,7 +97,7 @@
         }
       }
     },
-    "/rj/eproc": {
+    "/api/v1/scrape/rj/eproc": {
       "post": {
         "summary": "Realizar scraping de processo no Eproc-RJ",
         "description": "Endpoint para realizar o scraping de um processo no Eproc-RJ. Recebe apenas o número do processo no corpo da requisição.",

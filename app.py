@@ -1,3 +1,4 @@
+from dotenv import load_dotenv
 from flask import Flask
 
 from flask_swagger_ui import get_swaggerui_blueprint
@@ -11,6 +12,8 @@ import logging
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+load_dotenv()
+
 
 app = Flask(__name__)
 
