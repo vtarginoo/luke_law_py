@@ -1,7 +1,8 @@
 from dotenv import load_dotenv
 from flask import Flask
-
 from flask_swagger_ui import get_swaggerui_blueprint
+
+load_dotenv()
 
 from modules.message.message_controller import message_bp
 from modules.models.exception.global_exception_handler import exception_scrape_bp
@@ -12,7 +13,7 @@ import logging
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
-load_dotenv()
+
 
 
 app = Flask(__name__)
@@ -50,4 +51,4 @@ def home():
 
 if __name__ == '__main__':
     logger.info("Iniciando servidor Flask em modo de desenvolvimento.")
-    app.run(debug=True, port=5000)
+    app.run(debug=True, host='0.0.0.0', port=5000)
