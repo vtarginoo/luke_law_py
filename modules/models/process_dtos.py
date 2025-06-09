@@ -85,5 +85,13 @@ class ParteDTO(BaseModel): # Adicionado, se você tiver uma estrutura de partes 
     nome: str
     tipo: str # Ex: "Advogado", "Autor", "Réu"
 
-g
+# DTO Principal para dados raspados
+class ProcessoScrapedDTO(BaseModel):
+    partesEnvolvidas: str # Considerar usar List[ParteDTO] no futuro
+    numeroProcesso: str
+    tribunal: str
+    sistema: str
+    grau: str
+    movimentos: List[MovimentoDTO] = Field(default_factory=list)
+    dataHoraUltimaAtualizacao: datetime
 

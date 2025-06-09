@@ -5,23 +5,26 @@ from datetime import datetime
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 
+from modules.core.consults.passive_consultant_service import PassiveConsultantService
+from modules.models.process_dtos import ProcessoScrapedDTO
+
 logger = logging.getLogger(__name__)
 
-# --- A Função da Tarefa Agendada (o "core" do seu serviço de agendamento) ---
-def check_and_process_modifications():
-    """
-    Função principal agendada que verifica modificações nos processos da lista
-    PROCESSES_TO_MONITOR e dispara ações (como notificação) se necessário.
-    """
-    global previous_process_states # Indica que estamos usando a variável global
+passive_consultant_service = PassiveConsultantService()
 
+
+# --- A Função da Tarefa Agendada ---
+def perform_scheduled_scraping():
+    """
+    Função principal agendada que itera sobre a lista de processos
+    e realiza o scraping para cada um, printando o resultado.
+    """
     current_hour = datetime.now().hour
 
-    # O horário atual é Terça-feira, 10 de Junho de 2025, 18:39:40 -03
-    # Lembre-se que o scheduler vai rodar às 19:00:00 e depois só às 09:00:00 de amanhã.
-    if 9 <= current_hour <= 19: # Roda das 9h às 19h (inclusive)
-        logger.info \
-            (f"--- Iniciando tarefa de verificação de processos agendada às {datetime.now().strftime('%H:%M:%S')} ---")
+    # O cron do APScheduler garantirá que isso rode no minuto 0 das horas 9 a 19.
+    # Mas a verificação de horário dentro da função adiciona uma camada de segurança.
+    if 9 <= current_hour <= 19:
+        logger.info(f"--- Iniciando tarefa de scraping agendada às {datetime.now().strftime('%H:%M:%S')} ---")
 
         if not PROCESSES_TO_MONITOR:
             logger.warning("Nenhum processo configurado na lista PROCESSES_TO_MONITOR. Pulando esta execução.")
@@ -33,75 +36,74 @@ def check_and_process_modifications():
             num_processo = process_data.get('num_processo')
 
             if not all([adv_wpp, system_identifier, num_processo]):
-                logger.warning(f"Dados incompletos na lista para o processo: {process_data}. Pulando verificação.")
+                logger.warning(f"Dados incompletos na lista para o processo: {process_data}. Pulando este item.")
                 continue
 
-            process_key = f"{system_identifier}-{num_processo}"
-
             try:
-                # 1. Scraping: Obtém os detalhes ATUAIS do processo
-                current_process_details = passive_consultant_service.process_passive_consultation(
+                # 1. Chamar a função de scraping do PassiveConsultantService
+                logger.info(f"Raspando processo: {num_processo} do sistema: {system_identifier} para {adv_wpp}...")
+
+                # AQUI É O PONTO CENTRAL: CHAMA SUA FUNÇÃO DE SCRAPING!
+                scraped_dto: ProcessoScrapedDTO = passive_consultant_service.process_passive_consultation(
                     adv_wpp, system_identifier, num_processo
                 )
-                logger.debug(f"Processo '{num_processo}' consultado com sucesso.")
 
-                # Converte o DTO para um formato comparável. Adapte se necessário.
-                current_state_for_comparison = current_process_details.__dict__
+                logger.info(f"Scraping concluído para o processo: {num_processo}.")
 
-                # 2. Comparação: Verifica se este processo já foi raspado antes
-                if process_key in previous_process_states:
-                    if previous_process_states[process_key] != current_state_for_comparison:
-                        logger.info(f"*** MODIFICAÇÃO DETECTADA NO PROCESSO: {num_processo}! ***")
-                        # --- AÇÃO QUANDO UMA MODIFICAÇÃO É ENCONTRADA ---
-                        # Aqui você chamaria o serviço de WhatsApp para enviar a notificação.
-                        # formatted_message = format_passive_generic_message(current_process_details)
-                        # whatsapp_service.send_whatsapp_message(adv_wpp, formatted_message)
-
-                        print(f"NOTIFICAÇÃO: Modificação detectada para {num_processo}. Notificando {adv_wpp}.")
-                    else:
-                        logger.info \
-                            (f"Processo '{num_processo}': Nenhuma modificação detectada desde a última verificação.")
-                else:
-                    logger.info(f"Processo '{num_processo}': Primeira consulta. Armazenando estado inicial.")
-
-                # 3. Atualizar Estado: Guarda o estado ATUAL do processo para a próxima comparação
-                previous_process_states[process_key] = current_state_for_comparison
+                # 2. Printar o resultado do scraping (o DTO retornado)
+                print("\n" + "=" * 50)
+                print(f"RESULTADO DO SCRAPING PARA O PROCESSO {num_processo}:")
+                # Usamos .json() para uma representação JSON legível do Pydantic DTO
+                print(scraped_dto.json(indent=4))
+                print("=" * 50 + "\n")
 
             except Exception as e:
-                logger.error(f"Erro ao processar/verificar o processo '{num_processo}': {e}", exc_info=True)
+                logger.error(f"Erro ao raspar o processo '{num_processo}': {e}", exc_info=True)
 
-        logger.info("--- Verificação de processos agendada concluída. ---")
+        logger.info("--- Tarefa de scraping agendada concluída. ---")
 
     else:
-        logger.info \
-            (f"Fora do horário de operação (9h-19h). Hora atual: {datetime.now().strftime('%H:%M:%S')}. Aguardando próximo ciclo.")
+        logger.info(
+            f"Fora do horário de operação (9h-19h). Hora atual: {datetime.now().strftime('%H:%M:%S')}. Aguardando próximo ciclo.")
+
 
 # --- Configuração e Início do Scheduler ---
-def start_active_consultant_scheduler():
+def start_active_consultant_service():
     """
-    Cria e inicia o APScheduler para executar a tarefa de verificação de processos.
-    Esta função será chamada para iniciar o serviço.
+    Cria e inicia o APScheduler para executar a tarefa de scraping agendada.
     """
+    # BackgroundScheduler é usado para scripts que rodam em segundo plano.
     scheduler = BackgroundScheduler()
 
+    # Adiciona a tarefa `perform_scheduled_scraping` ao agendador.
     scheduler.add_job(
-        id='hourly_process_modification_check',
-        func=check_and_process_modifications,
-        trigger=CronTrigger(hour='9-19', minute='0'), # Roda no minuto 0 de cada hora, das 9h às 19h
-        name='Verificação Horária de Modificações de Processo',
-        replace_existing=True
+        id='initial_process_scraping',  # Um ID único para esta tarefa inicial
+        func=perform_scheduled_scraping,  # A função que será executada
+        trigger='interval',  # Usamos 'interval' em vez de 'cron'
+        seconds=10,  # Roda após 10 segundos
+        name='Consulta Ativa Inicial de Processos',  # Nome amigável para a tarefa
+        replace_existing=True,  # Garante que não haja jobs duplicados
+        max_instances=1  # Garante que rode apenas uma vez
     )
 
     logger.info("Serviço de consulta ativa iniciado. Agendador configurado.")
-    scheduler.start()
+    scheduler.start()  # Inicia o agendador!
 
+    # Este loop mantém o script Python rodando indefinidamente.
+    # O scheduler opera em um thread separado, então o thread principal precisa estar ativo.
     try:
         while True:
-            time.sleep(2) # Dorme por 2 segundos para não consumir CPU desnecessariamente
+            time.sleep(2)  # Pausa por 2 segundos para evitar consumo excessivo de CPU.
     except (KeyboardInterrupt, SystemExit):
+        # Captura Ctrl+C (KeyboardInterrupt) ou sinais de saída do sistema (SystemExit)
+        # para desligar o scheduler de forma limpa.
         scheduler.shutdown()
         logger.info("Serviço de consulta ativa encerrado.")
 
+
+# --- Ponto de Entrada Principal ---
+if __name__ == '__main__':
+    start_active_consultant_service()
 
 PROCESSES_TO_MONITOR = [
     {
@@ -119,12 +121,6 @@ PROCESSES_TO_MONITOR = [
 
 
 
-
-# --- Ponto de Entrada Principal para Rodar este Serviço ---
-if __name__ == '__main__':
-    # Quando você executa 'python modules/core/consults/active_consultant_service.py',
-    # esta parte do código será executada e iniciará o agendador.
-    start_active_consultant_scheduler()
 
 
 
