@@ -95,3 +95,21 @@ class ProcessoScrapedDTO(BaseModel):
     movimentos: List[MovimentoDTO] = Field(default_factory=list)
     dataHoraUltimaAtualizacao: datetime
 
+
+# --- Novo DTO para a Análise do Último Movimento ---
+class AnaliseUltimoMovimentoDTO(BaseModel):
+    # Campos herdados do ProcessoScrapedDTO
+    partesEnvolvidas: str  # Considerar usar List[ParteDTO] no futuro
+    numeroProcesso: str
+    tribunal: str
+    sistema: str
+    grau: str
+    dataHoraUltimaAtualizacao: datetime
+
+    # Campo para o ÚLTIMO movimento (não mais uma lista)
+    ultimoMovimento: Optional[MovimentoDTO] = None  # Pode ser None se não houver movimentos
+
+    # Novo campo booleano para indicar se o movimento é recente
+    movimento_recente: bool
+    ultima_atualizacao_delta_horas: float
+
